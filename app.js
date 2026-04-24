@@ -419,6 +419,16 @@ async function loadWallets() {
         return;
     }
 
+    // Calculate total holdings
+    let totalHoldings = 0;
+    wallets.forEach(w => totalHoldings += (w.balance || 0));
+    
+    // Update KPI Card
+    document.getElementById('kpi-holdings').innerText = fmt(totalHoldings);
+    if (currentData && currentData.price_usd) {
+        document.getElementById('kpi-holdings-usd').innerText = fmtUSD(totalHoldings * currentData.price_usd);
+    }
+
     tbody.innerHTML = wallets.map(w => {
         const color = EXCHANGE_COLORS[w.exchange] || '#6b7280';
         return `
@@ -427,7 +437,7 @@ async function loadWallets() {
                 <span class="exchange-dot" style="background:${color}; box-shadow: 0 0 6px ${color}60;"></span>
                 ${w.exchange}
             </td>
-            <td style="font-family: var(--font-mono); color: var(--text-2);">${w.address}</td>
+            <td class="wallet-address" style="color: var(--text-2);" title="Click to copy">${w.address}</td>
             <td style="color: var(--gold);">${fmt(w.balance)} DOG</td>
             <td style="color: var(--text-2); font-size: 0.8rem;">${w.reason || 'Manual entry'}</td>
         </tr>`;
