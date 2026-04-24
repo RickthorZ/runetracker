@@ -19,33 +19,40 @@ MAGIC_EDEN_URL = "https://api-mainnet.magiceden.dev/v2/ord/btc/runes/market/DOG%
 FALLBACK_PRICE = 0.0072  # Last known price — only used if both APIs fail
 
 def fetch_price() -> float:
-    """Returns live DOG price in USD. Falls back gracefully."""
+    """Returns live DOG price in USD from Centralized Exchanges to bypass IP blocks."""
+    
+    # 1. Try Gate.io
     try:
-        # Attempt Magic Eden first (most accurate for Rune-specific price)
-        resp = requests.get(MAGIC_EDEN_URL, timeout=5)
-        resp.raise_for_status()
-        data = resp.json()
-        price_sats = float(data.get("floorPrice", 0))
-        if price_sats > 0:
-            # Convert sats/DOG to USD/DOG using BTC price
-            btc_usd = _get_btc_price()
-            price_usd = (price_sats / 1e8) * btc_usd
-            print(f"[Price] DOG price via Magic Eden: ${price_usd:.6f}")
-            return price_usd
+        resp = requests.get("https://api.gateio.ws/api/v4/spot/tickers?currency_pair=DOG_USDT", timeout=5)
+        if resp.status_code == 200:
+            price = float(resp.json()[0]['last'])
+            print(f"[Price] Fetched from Gate.io: ${price:.6f}")
+            return price
     except Exception as e:
-        print(f"[Price] Magic Eden failed: {e}")
+        print(f"[Price] Gate.io failed: {e}")
 
+    # 2. Try MEXC
     try:
-        # Fallback: use CoinGecko for BTC price × a hardcoded DOG/BTC estimate
-        btc_usd = _get_btc_price()
-        # ~16,000 sats per DOG as a reasonable mid estimate
-        price_usd = (16000 / 1e8) * btc_usd
-        print(f"[Price] DOG price estimated via BTC: ${price_usd:.6f}")
-        return price_usd
+        resp = requests.get("https://api.mexc.com/api/v3/ticker/price?symbol=DOGUSDT", timeout=5)
+        if resp.status_code == 200:
+            price = float(resp.json()['price'])
+            print(f"[Price] Fetched from MEXC: ${price:.6f}")
+            return price
     except Exception as e:
-        print(f"[Price] BTC fallback failed: {e}")
+        print(f"[Price] MEXC failed: {e}")
 
-    print(f"[Price] Using hardcoded fallback: ${FALLBACK_PRICE}")
+    # 3. Try Bybit
+    try:
+        resp = requests.get("https://api.bybit.com/v5/market/tickers?category=spot&symbol=DOGUSDT", timeout=5)
+        if resp.status_code == 200:
+            price = float(resp.json()['result']['list'][0]['lastPrice'])
+            print(f"[Price] Fetched from Bybit: ${price:.6f}")
+            return price
+    except Exception as e:
+        print(f"[Price] Bybit failed: {e}")
+
+    # 4. Fallback
+    print(f"[Price] All APIs failed. Using hardcoded fallback: ${FALLBACK_PRICE}")
     return FALLBACK_PRICE
 
 def _get_btc_price() -> float:
