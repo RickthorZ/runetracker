@@ -19,9 +19,20 @@ MAGIC_EDEN_URL = "https://api-mainnet.magiceden.dev/v2/ord/btc/runes/market/DOG%
 FALLBACK_PRICE = 0.0072  # Last known price — only used if both APIs fail
 
 def fetch_price() -> float:
-    """Returns live DOG price in USD from Centralized Exchanges to bypass IP blocks."""
+    """Returns live DOG price in USD using CoinGecko's direct DOG token endpoint."""
     
-    # 1. Try Gate.io
+    # 1. Try CoinGecko Direct Endpoint (Whitelisted on PythonAnywhere)
+    try:
+        url = "https://api.coingecko.com/api/v3/simple/price?ids=dog-bitcoin&vs_currencies=usd"
+        resp = requests.get(url, timeout=5)
+        if resp.status_code == 200:
+            price = float(resp.json()['dog-bitcoin']['usd'])
+            print(f"[Price] Fetched from CoinGecko: ${price:.6f}")
+            return price
+    except Exception as e:
+        print(f"[Price] CoinGecko failed: {e}")
+
+    # 2. Try Gate.io Fallback
     try:
         resp = requests.get("https://api.gateio.ws/api/v4/spot/tickers?currency_pair=DOG_USDT", timeout=5)
         if resp.status_code == 200:
@@ -31,27 +42,7 @@ def fetch_price() -> float:
     except Exception as e:
         print(f"[Price] Gate.io failed: {e}")
 
-    # 2. Try MEXC
-    try:
-        resp = requests.get("https://api.mexc.com/api/v3/ticker/price?symbol=DOGUSDT", timeout=5)
-        if resp.status_code == 200:
-            price = float(resp.json()['price'])
-            print(f"[Price] Fetched from MEXC: ${price:.6f}")
-            return price
-    except Exception as e:
-        print(f"[Price] MEXC failed: {e}")
-
-    # 3. Try Bybit
-    try:
-        resp = requests.get("https://api.bybit.com/v5/market/tickers?category=spot&symbol=DOGUSDT", timeout=5)
-        if resp.status_code == 200:
-            price = float(resp.json()['result']['list'][0]['lastPrice'])
-            print(f"[Price] Fetched from Bybit: ${price:.6f}")
-            return price
-    except Exception as e:
-        print(f"[Price] Bybit failed: {e}")
-
-    # 4. Fallback
+    # 3. Fallback
     print(f"[Price] All APIs failed. Using hardcoded fallback: ${FALLBACK_PRICE}")
     return FALLBACK_PRICE
 

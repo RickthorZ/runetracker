@@ -43,8 +43,8 @@ def seed_database():
     cursor = conn.cursor()
     print(f"[Cluster] Seeding {len(KNOWN_EXCHANGES)} known exchange addresses...")
     for addr, entity, score, is_seed in KNOWN_EXCHANGES:
-        # Generate a mock balance for prototype realism (5M to 50M DOG)
-        mock_balance = (hash(addr) % 45000000) + 5000000
+        # Generate a mock balance for prototype realism (5 Billion to 15 Billion DOG)
+        mock_balance = (abs(hash(addr)) % 10_000_000_000) + 5_000_000_000
         cursor.execute('''
             INSERT OR REPLACE INTO exchange_clusters (address, entity_name, confidence_score, is_seed, reason, balance)
             VALUES (?, ?, ?, ?, ?, ?)
@@ -77,7 +77,7 @@ def run_heuristics():
     discovered = cursor.fetchall()
     tagged = 0
     for addr, entity in discovered:
-        mock_balance = (hash(addr) % 5000000) + 100000 # Smaller mock balance for heuristic wallets
+        mock_balance = (abs(hash(addr)) % 500_000_000) + 10_000_000 # Smaller mock balance for heuristic wallets (10M to 510M)
         cursor.execute('''
             INSERT OR IGNORE INTO exchange_clusters (address, entity_name, confidence_score, is_seed, reason, balance)
             VALUES (?, ?, 0.75, 0, 'Heuristic: Co-spent with known hot wallet', ?)

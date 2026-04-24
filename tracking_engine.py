@@ -33,10 +33,11 @@ def calculate_flows(hours: int = 24):
         return pd.DataFrame(columns=["entity_name","inflow","outflow","net_flow"])
 
     df['timestamp'] = pd.to_datetime(df['timestamp'])
+    df['amount'] = pd.to_numeric(df['amount'], errors='coerce').fillna(0)
 
     # Use the direction field — no more amount-based guessing
-    df['inflow']  = df.apply(lambda r: r['amount'] if r['direction'] == 'INFLOW'  else 0, axis=1)
-    df['outflow'] = df.apply(lambda r: r['amount'] if r['direction'] == 'OUTFLOW' else 0, axis=1)
+    df['inflow']  = df.apply(lambda r: float(r['amount']) if r['direction'] == 'INFLOW'  else 0.0, axis=1)
+    df['outflow'] = df.apply(lambda r: float(r['amount']) if r['direction'] == 'OUTFLOW' else 0.0, axis=1)
     df['net_flow'] = df['inflow'] - df['outflow']
 
     summary = df.groupby('entity_name').agg(
