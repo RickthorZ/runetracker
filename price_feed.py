@@ -16,12 +16,22 @@ DB_PATH = os.path.join(os.path.dirname(__file__), 'runes_data.db')
 COINGECKO_URL = "https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=usd"
 MAGIC_EDEN_URL = "https://api-mainnet.magiceden.dev/v2/ord/btc/runes/market/DOG%E2%80%A2GO%E2%80%A2TO%E2%80%A2THE%E2%80%A2MOON/info"
 
-FALLBACK_PRICE = 0.0072  # Last known price — only used if both APIs fail
+FALLBACK_PRICE = 0.0072  # Last known price — only used if all APIs fail
 
 def fetch_price() -> float:
-    """Returns live DOG price in USD using CoinGecko's direct DOG token endpoint."""
-    
-    # 1. Try CoinGecko Direct Endpoint (Whitelisted on PythonAnywhere)
+    """Returns live DOG price in USD. Gate.io is primary source."""
+
+    # 1. Gate.io (Primary)
+    try:
+        resp = requests.get("https://api.gateio.ws/api/v4/spot/tickers?currency_pair=DOG_USDT", timeout=5)
+        if resp.status_code == 200:
+            price = float(resp.json()[0]['last'])
+            print(f"[Price] Fetched from Gate.io: ${price:.6f}")
+            return price
+    except Exception as e:
+        print(f"[Price] Gate.io failed: {e}")
+
+    # 2. CoinGecko Fallback
     try:
         url = "https://api.coingecko.com/api/v3/simple/price?ids=dog-bitcoin&vs_currencies=usd"
         resp = requests.get(url, timeout=5)
@@ -32,17 +42,7 @@ def fetch_price() -> float:
     except Exception as e:
         print(f"[Price] CoinGecko failed: {e}")
 
-    # 2. Try Gate.io Fallback
-    try:
-        resp = requests.get("https://api.gateio.ws/api/v4/spot/tickers?currency_pair=DOG_USDT", timeout=5)
-        if resp.status_code == 200:
-            price = float(resp.json()[0]['last'])
-            print(f"[Price] Fetched from Gate.io: ${price:.6f}")
-            return price
-    except Exception as e:
-        print(f"[Price] Gate.io failed: {e}")
-
-    # 3. Fallback
+    # 3. Hardcoded Fallback
     print(f"[Price] All APIs failed. Using hardcoded fallback: ${FALLBACK_PRICE}")
     return FALLBACK_PRICE
 
