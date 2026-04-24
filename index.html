@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DOG•GO•TO•THE•MOON — Exchange Flow Intel</title>
+    <meta name="description" content="Real-time on-chain tracking of DOG Rune (840000:3) flows into and out of exchange hot wallets.">
+    <link rel="stylesheet" href="style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <script src="https://unpkg.com/d3-sankey@0.12.3/dist/d3-sankey.min.js"></script>
+</head>
+<body>
+    <!-- Header -->
+    <header class="site-header">
+        <div class="header-inner">
+            <div class="brand">
+                <span class="brand-icon">🐕</span>
+                <div>
+                    <h1 class="brand-title">DOG•GO•TO•THE•MOON</h1>
+                    <p class="brand-sub">Rune 840000:3 · Exchange Flow Intel</p>
+                </div>
+            </div>
+            <div class="header-meta">
+                <div class="live-badge"><span class="pulse"></span>LIVE</div>
+                <div class="price-display">
+                    <span class="price-label">DOG/USD</span>
+                    <span class="price-value" id="dog-price">$—</span>
+                </div>
+                <div class="last-update">Updated <span id="last-updated">—</span></div>
+            </div>
+        </div>
+    </header>
+
+    <main class="main-content">
+        <!-- Time Range Controls -->
+        <div class="controls-bar">
+            <div class="range-tabs" id="range-tabs">
+                <button class="tab active" data-range="24h">24H</button>
+                <button class="tab" data-range="7d">7D</button>
+                <button class="tab" data-range="30d">30D</button>
+            </div>
+            <button class="refresh-btn" id="refresh-btn" onclick="refreshData()">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><path d="M1 4v6h6"/><path d="M23 20v-6h-6"/><path d="M20.49 9A9 9 0 0 0 5.64 5.64L1 10m22 4l-4.64 4.36A9 9 0 0 1 3.51 15"/></svg>
+                Refresh
+            </button>
+        </div>
+
+        <!-- KPI Cards -->
+        <div class="kpi-grid" id="kpi-grid">
+            <div class="kpi-card inflow">
+                <div class="kpi-icon">↓</div>
+                <div class="kpi-body">
+                    <p class="kpi-label">Total Inflow</p>
+                    <p class="kpi-value" id="kpi-inflow">—</p>
+                    <p class="kpi-usd" id="kpi-inflow-usd">—</p>
+                </div>
+            </div>
+            <div class="kpi-card outflow">
+                <div class="kpi-icon">↑</div>
+                <div class="kpi-body">
+                    <p class="kpi-label">Total Outflow</p>
+                    <p class="kpi-value" id="kpi-outflow">—</p>
+                    <p class="kpi-usd" id="kpi-outflow-usd">—</p>
+                </div>
+            </div>
+            <div class="kpi-card net highlight">
+                <div class="kpi-icon">≈</div>
+                <div class="kpi-body">
+                    <p class="kpi-label">Net Accumulation</p>
+                    <p class="kpi-value" id="kpi-net">—</p>
+                    <p class="kpi-usd" id="kpi-net-usd">—</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Sankey Flow Diagram -->
+        <section class="panel" id="sankey-panel">
+            <div class="panel-header">
+                <div>
+                    <h2 class="panel-title">Liquidity Flow Map</h2>
+                    <p class="panel-desc">Hover over nodes and links for detailed UTXO breakdowns</p>
+                </div>
+            </div>
+            <div id="sankey-diagram"></div>
+        </section>
+
+        <!-- Per-Exchange Accumulation Bar Chart -->
+        <section class="panel" id="bar-panel">
+            <div class="panel-header">
+                <div>
+                    <h2 class="panel-title">Exchange Accumulation Breakdown</h2>
+                    <p class="panel-desc">Inflow vs Outflow vs Net per exchange — larger net = bullish accumulation</p>
+                </div>
+            </div>
+            <div id="bar-chart"></div>
+        </section>
+
+        <!-- Exchange Detail Table -->
+        <section class="panel" id="table-panel">
+            <div class="panel-header">
+                <h2 class="panel-title">Exchange Wallet Detail</h2>
+            </div>
+            <div class="table-wrapper">
+                <table id="exchange-table">
+                    <thead>
+                        <tr>
+                            <th>Exchange</th>
+                            <th>Inflow (DOG)</th>
+                            <th>Inflow (USD)</th>
+                            <th>Outflow (DOG)</th>
+                            <th>Outflow (USD)</th>
+                            <th>Net Flow (DOG)</th>
+                            <th>Signal</th>
+                        </tr>
+                    </thead>
+                    <tbody id="table-body">
+                        <tr><td colspan="7" class="loading-cell">Loading data…</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+        <!-- Wallet Address Registry -->
+        <section class="panel" id="wallet-panel">
+            <div class="panel-header">
+                <div>
+                    <h2 class="panel-title">Exchange Wallet Registry</h2>
+                    <p class="panel-desc">Known hot/cold wallets tracked by the engine and the logic behind their classification.</p>
+                </div>
+            </div>
+            <div class="table-wrapper">
+                <table id="wallet-table">
+                    <thead>
+                        <tr>
+                            <th>Exchange</th>
+                            <th>Bitcoin UTXO Address</th>
+                            <th>Current Holdings (DOG)</th>
+                            <th>Classification Reason</th>
+                        </tr>
+                    </thead>
+                    <tbody id="wallet-body">
+                        <tr><td colspan="4" class="loading-cell">Loading registry data…</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+    </main>
+
+    <!-- Tooltip -->
+    <div id="tooltip" class="tooltip"></div>
+
+    <script src="app.js"></script>
+</body>
+</html>
