@@ -3,8 +3,7 @@ server.py
 Lightweight Flask API that serves live flow data and DOG price to the frontend.
 Run with: python server.py
 """
-from flask import Flask, jsonify, send_from_directory
-from flask_cors import CORS
+from flask import Flask, jsonify, send_from_directory, request
 import os, sys
 
 sys.path.insert(0, os.path.dirname(__file__))
@@ -15,7 +14,14 @@ from fetch_runes import run as fetch_run
 from database import init_db
 
 app = Flask(__name__, static_folder='.', static_url_path='')
-CORS(app)
+
+# Manually handle CORS to avoid PythonAnywhere dependency issues
+@app.after_request
+def after_request(response):
+    response.headers.add('Access-Control-Allow-Origin', '*')
+    response.headers.add('Access-Control-Allow-Headers', 'Content-Type,Authorization')
+    response.headers.add('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE,OPTIONS')
+    return response
 
 # ── Routes ────────────────────────────────────────────────────────────────────
 
