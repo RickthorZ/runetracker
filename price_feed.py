@@ -1,7 +1,7 @@
 """
 price_feed.py
-Fetches the live DOG•GO•TO•THE•MOON price in USD from CoinGecko (free, no key required)
-and caches it in the SQLite database.
+Fetches the live DOG•GO•TO•THE•MOON price in USD.
+Cascades through multiple free, keyless APIs until one responds.
 """
 import sqlite3
 import requests
@@ -10,18 +10,35 @@ from datetime import datetime
 
 DB_PATH = os.path.join(os.path.dirname(__file__), 'runes_data.db')
 
-# CoinGecko free endpoint for DOG rune price
-# DOG is listed under the Runes market — we use the generic Bitcoin price
-# and apply the DOG/BTC ratio from Magic Eden's free endpoint.
-COINGECKO_URL = "https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=usd"
-MAGIC_EDEN_URL = "https://api-mainnet.magiceden.dev/v2/ord/btc/runes/market/DOG%E2%80%A2GO%E2%80%A2TO%E2%80%A2THE%E2%80%A2MOON/info"
-
-FALLBACK_PRICE = 0.0072  # Last known price — only used if all APIs fail
+FALLBACK_PRICE = 0.000788  # Updated fallback based on last known live price
 
 def fetch_price() -> float:
-    """Returns live DOG price in USD. Gate.io is primary source."""
+    """Returns live DOG price in USD. Tries CoinPaprika → DexScreener → Gate.io → CoinGecko."""
 
-    # 1. Gate.io (Primary)
+    # 1. CoinPaprika (Best free aggregator — whitelisted on PythonAnywhere, no key needed)
+    try:
+        resp = requests.get("https://api.coinpaprika.com/v1/tickers/dog-dog-bitcoin", timeout=8)
+        if resp.status_code == 200:
+            data = resp.json()
+            price = float(data['quotes']['USD']['price'])
+            print(f"[Price] Fetched from CoinPaprika: ${price:.6f}")
+            return price
+    except Exception as e:
+        print(f"[Price] CoinPaprika failed: {e}")
+
+    # 2. DexScreener (100% free, 300 req/min, great for on-chain tokens)
+    try:
+        resp = requests.get("https://api.dexscreener.com/latest/dex/search?q=DOG%20bitcoin", timeout=8)
+        if resp.status_code == 200:
+            pairs = resp.json().get('pairs', [])
+            if pairs:
+                price = float(pairs[0]['priceUsd'])
+                print(f"[Price] Fetched from DexScreener: ${price:.6f}")
+                return price
+    except Exception as e:
+        print(f"[Price] DexScreener failed: {e}")
+
+    # 3. Gate.io (Direct CEX feed)
     try:
         resp = requests.get("https://api.gateio.ws/api/v4/spot/tickers?currency_pair=DOG_USDT", timeout=5)
         if resp.status_code == 200:
@@ -31,10 +48,9 @@ def fetch_price() -> float:
     except Exception as e:
         print(f"[Price] Gate.io failed: {e}")
 
-    # 2. CoinGecko Fallback
+    # 4. CoinGecko (rate-limited on free tier but good backup)
     try:
-        url = "https://api.coingecko.com/api/v3/simple/price?ids=dog-bitcoin&vs_currencies=usd"
-        resp = requests.get(url, timeout=5)
+        resp = requests.get("https://api.coingecko.com/api/v3/simple/price?ids=dog-bitcoin&vs_currencies=usd", timeout=5)
         if resp.status_code == 200:
             price = float(resp.json()['dog-bitcoin']['usd'])
             print(f"[Price] Fetched from CoinGecko: ${price:.6f}")
@@ -42,8 +58,8 @@ def fetch_price() -> float:
     except Exception as e:
         print(f"[Price] CoinGecko failed: {e}")
 
-    # 3. Hardcoded Fallback
-    print(f"[Price] All APIs failed. Using hardcoded fallback: ${FALLBACK_PRICE}")
+    # 5. Hardcoded Fallback
+    print(f"[Price] All APIs failed. Using fallback: ${FALLBACK_PRICE}")
     return FALLBACK_PRICE
 
 def _get_btc_price() -> float:
