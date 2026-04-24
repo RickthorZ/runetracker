@@ -1,6 +1,6 @@
-/* ── app.js — DOG Rune Flow Intel Dashboard ─────────────────────────── */
+// ── app.js — DOG Rune Flow Intel Dashboard ─────────────────────────── */
 
-const API_BASE = 'http://localhost:5050/api';
+const API_BASE = 'https://rickthor.pythonanywhere.com/api';
 
 // Exchange color map — must match seed_clusters.py entity_name values
 const EXCHANGE_COLORS = {
