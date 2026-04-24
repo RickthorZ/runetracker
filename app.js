@@ -1,6 +1,8 @@
 // ── app.js — DOG Rune Flow Intel Dashboard ─────────────────────────── */
 
-const API_BASE = 'https://rickthor.pythonanywhere.com/api';
+// Dynamically select API base so local testing works automatically
+const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' || window.location.protocol === 'file:';
+const API_BASE = isLocal ? 'http://127.0.0.1:5050/api' : 'https://rickthor.pythonanywhere.com/api';
 
 // Exchange color map — must match seed_clusters.py entity_name values
 const EXCHANGE_COLORS = {
@@ -96,7 +98,7 @@ async function loadData(range) {
     activeRange = range;
 
     try {
-        const resp = await fetch(`${API_BASE}/flows?range=${range}`, { signal: AbortSignal.timeout(5000) });
+        const resp = await fetch(`${API_BASE}/flows?range=${range}`, { signal: AbortSignal.timeout(25000) });
         if (!resp.ok) throw new Error('Server error');
         currentData = await resp.json();
         console.log('[App] Live data loaded.');
@@ -406,7 +408,7 @@ function renderTable(data) {
 async function loadWallets() {
     let wallets = [];
     try {
-        const resp = await fetch(`${API_BASE}/wallets`, { signal: AbortSignal.timeout(5000) });
+        const resp = await fetch(`${API_BASE}/wallets`, { signal: AbortSignal.timeout(25000) });
         if (resp.ok) wallets = await resp.json();
     } catch (e) {
         // use mock if offline
